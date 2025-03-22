@@ -1,0 +1,3 @@
+# Ignore output files
+cron_output.csv
+cron_timeline.png
