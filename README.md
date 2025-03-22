@@ -79,7 +79,7 @@ python parse_crontab.py
 
 ## 📊 出力イメージ
 
-![example timeline](cron_timeline.png)
+![example timeline](cron_timeline_example.png)
 
 ---
 
