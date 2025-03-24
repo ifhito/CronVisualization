@@ -58,7 +58,14 @@ def export_to_csv(timeline, filename="cron_output.csv"):
         for row in timeline:
             writer.writerow([row['system'], row['schedule'], row['command'], row['execution_time']])
 
-def visualize(timeline):
+def visualize(timeline, base_time=None):
+    # データを3日間に制限
+    if base_time is None:
+        base_time = datetime.now()
+    now = base_time
+    end_time = now + timedelta(days=3)
+    timeline = [t for t in timeline if now <= t['execution_time'] <= end_time]
+
     label_time_map = {}
     for row in timeline:
         label = f"{row['system']}: {row['command']}"
@@ -66,52 +73,71 @@ def visualize(timeline):
         if label not in label_time_map or time < label_time_map[label]:
             label_time_map[label] = time
 
-    # Sort labels by their earliest execution time
+    # 全てのラベルを使用
     unique_labels = sorted(label_time_map.keys(), key=lambda lbl: label_time_map[lbl])
-    
-    # 整理
+    label_to_y = {label: i for i, label in enumerate(unique_labels)}
+
     times = [row["execution_time"] for row in timeline]
     labels = [f"{row['system']}: {row['command']}" for row in timeline]
     systems = [row["system"] for row in timeline]
 
-    # y 軸ラベルをユニーク化
-    label_to_y = {label: i for i, label in enumerate(unique_labels)}
     y_vals = [label_to_y[label] for label in labels]
 
-    # カラーマップ（システムごとに色）
     system_to_color = {sys: color for sys, color in zip(sorted(set(systems)), sns.color_palette("tab10", len(set(systems))))}
     colors = [system_to_color[sys] for sys in systems]
 
     # 描画
-    plt.figure(figsize=(14, 8))
-    plt.scatter(times, y_vals, c=colors, s=20)
-    plt.yticks(list(label_to_y.values()), list(label_to_y.keys()))
+    plt.figure(figsize=(20, 12))
+    scatter = plt.scatter(times, y_vals, c=colors, s=10)
+
+    # プロットの横に時間を表示
+    for t, y in zip(times, y_vals):
+        plt.text(t, y, t.strftime('%H:%M'), fontsize=6, va='center', ha='left', bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+
+    plt.yticks(list(label_to_y.values()), list(label_to_y.keys()), fontsize=6)
     plt.gca().invert_yaxis()
     plt.xlabel("実行時刻")
-    plt.title("システム別 Cronジョブのタイムライン（3日分）")
-    plt.grid(True)
+    plt.title("システム別 Cronジョブのタイムライン（3日間）", fontsize=16)
+    plt.grid(True, which='both', linestyle=':', linewidth=0.5)
 
     # 横軸調整（3日間）＋フォーマット
-    now = datetime.now()
-    plt.xlim([now, now + timedelta(days=3)])
+    plt.xlim([now, end_time])
     ax = plt.gca()
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=6))
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=45, ha='right', fontsize=8)
 
     # 凡例
-    handles = [plt.Line2D([0], [0], marker='o', color='w', label=system,
-                          markerfacecolor=color, markersize=8) for system, color in system_to_color.items()]
-    plt.legend(handles=handles, title="システム", loc='upper left')
+    legend_elements = [plt.Line2D([0], [0], marker='o', color='w', label=system,
+                                  markerfacecolor=color, markersize=6)
+                       for system, color in system_to_color.items()]
+    plt.legend(handles=legend_elements, title="システム", loc='center left', bbox_to_anchor=(1, 0.5), fontsize=8)
 
     plt.tight_layout()
-    plt.savefig("cron_timeline.png")
-    print("📷 cron_timeline.png を保存しました")
+    output_image = f"cron_timeline_{args.system}.png" if args.system else "cron_timeline.png"
+    plt.savefig(output_image, dpi=150, bbox_inches='tight')
+    print(f":camera: {output_image} を保存しました")
     plt.show()
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Cronジョブのタイムラインを解析・可視化します。")
+    parser.add_argument("--base-time", type=str, help="基準時刻を指定 (フォーマット: YYYY-MM-DD HH:MM:SS)", default=None)
+    parser.add_argument("--system", type=str, help="特定のシステム名を指定してフィルタリングします", default=None)
+    args = parser.parse_args()
+
+    base_time = None
+    if args.base_time:
+        try:
+            base_time = datetime.strptime(args.base_time, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            print("❌ 基準時刻のフォーマットが正しくありません。YYYY-MM-DD HH:MM:SS の形式で指定してください。")
+            exit(1)
     jobs = read_all_crontabs()
-    timeline = compute_executions(jobs)
-    export_to_csv(timeline)
-    print("✅ cron_output.csv を出力しました")
-    visualize(timeline)
+    if args.system:
+        jobs = [job for job in jobs if job['system'] == args.system]
+        timeline = compute_executions(jobs, base_time=base_time)
+        export_to_csv(timeline)
+        print("✅ cron_output.csv を出力しました")
+        visualize(timeline, base_time=base_time)
