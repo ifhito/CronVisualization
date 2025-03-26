@@ -137,7 +137,8 @@ if __name__ == "__main__":
     jobs = read_all_crontabs()
     if args.system:
         jobs = [job for job in jobs if job['system'] == args.system]
-        timeline = compute_executions(jobs, base_time=base_time)
-        export_to_csv(timeline)
-        print("✅ cron_output.csv を出力しました")
-        visualize(timeline, base_time=base_time)
+    timeline = compute_executions(jobs, base_time=base_time)
+    export_to_csv(timeline)
+    print("✅ cron_output.csv を出力しました")
+    visualize(timeline, base_time=base_time)
+    
