@@ -68,8 +68,14 @@ uv pip install -r requirements.txt
 ## ▶️ 実行方法
 
 ```bash
-python parse_crontab.py
+python parse_crontab.py [オプション]
 ```
+
+- オプション：
+  - `--base-time`：基準時刻を指定します（フォーマット: `YYYY-MM-DD HH:MM:SS`）。例: `--base-time "2025-03-26 09:00:00"`
+  - `--system`：特定のシステム名でフィルタリングします。例: `--system "lmc"`
+    フィルタリングの結果、生成される画像やCSV出力が指定されたシステムに限定されます。
+    また、CSVファイル名も`cron_output_<システム名>.csv`の形式になります。
 
 - 出力ファイル：
   - `cron_output.csv`：スケジュール一覧
